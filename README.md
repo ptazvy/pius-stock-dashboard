@@ -6,6 +6,8 @@ Built for **PIUS Ltd** stock counting and inventory reporting. Works entirely of
 
 **Author:** Paison Tazvy
 
+![Dashboard Preview](preview.png)
+
 ## Features
 
 - **KPI cards** for stock value and quantity:
