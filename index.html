@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PIUS Ltd Monthly Stock Dashboard</title>
+  <style>
+    :root {
+      --navy: #1B3A5F;
+      --navy-light: #2C5282;
+      --light-blue: #E8F0F8;
+      --bg: #F0F4F8;
+      --white: #FFFFFF;
+      --border: #D0D7E2;
+      --text: #1A202C;
+      --muted: #718096;
+      --red: #C53030;
+      --green: #276749;
+      --amber: #B7791F;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Calibri, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.4;
+      padding-bottom: 48px;
+    }
+    .header {
+      background: var(--navy);
+      color: white;
+      padding: 18px 28px 14px;
+    }
+    .header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    .header .subtitle { font-size: 0.9rem; color: #A8C5E2; margin-bottom: 2px; }
+    .header .meta { font-size: 0.8rem; color: #8BA3C1; }
+
+    .controls {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 14px 28px 6px; max-width: 1280px; margin: 0 auto;
+    }
+    .controls label { font-size: 0.88rem; color: var(--muted); }
+    .month-badge {
+      background: var(--navy); color: white; padding: 6px 16px;
+      border-radius: 6px; font-weight: 600; font-size: 0.92rem;
+    }
+    .period-input {
+      background: var(--navy);
+      color: white;
+      border: 2px solid #2C5282;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.92rem;
+      font-family: inherit;
+      width: 140px;
+      text-align: center;
+      outline: none;
+    }
+    .period-input:focus {
+      border-color: #A8C5E2;
+      box-shadow: 0 0 0 2px rgba(168,197,226,0.35);
+    }
+    .period-input::placeholder { color: #8BA3C1; font-weight: 500; }
+    .file-btn {
+      background: var(--navy-light); color: white; border: none;
+      padding: 6px 14px; border-radius: 6px; font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .file-btn:hover { background: var(--navy); }
+    #fileName { font-size: 0.8rem; color: var(--muted); }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 10px 28px 0; }
+
+    .kpi-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px;
+    }
+    .kpi-grid.two-col { grid-template-columns: 1fr 1fr; }
+
+    .kpi-card {
+      background: var(--white); border: 1px solid var(--border);
+      border-radius: 6px; box-shadow: var(--shadow); overflow: hidden;
+    }
+    .kpi-card .title {
+      background: var(--light-blue); padding: 7px 12px;
+      font-size: 0.72rem; font-weight: 700; color: var(--navy);
+      text-transform: uppercase; letter-spacing: 0.3px;
+      border-bottom: 1px solid var(--border);
+    }
+    .kpi-card .value {
+      padding: 10px 12px 2px; font-size: 1.55rem; font-weight: 700;
+    }
+    .kpi-card .value.muted { color: #A0AEC0; }
+    .kpi-card .value.danger { color: var(--red); }
+    .kpi-card .value.positive { color: var(--green); }
+    .kpi-card .value.negative { color: var(--red); }
+    .kpi-card .subtitle {
+      padding: 0 12px 10px; font-size: 0.78rem; color: var(--muted);
+    }
+
+    .section-header {
+      background: var(--navy); color: white; padding: 8px 14px;
+      font-size: 0.85rem; font-weight: 700;
+      border-radius: 6px 6px 0 0; margin-top: 20px;
+    }
+    .table-wrap {
+      background: white; border: 1px solid var(--border); border-top: none;
+      border-radius: 0 0 6px 6px; overflow: auto; box-shadow: var(--shadow);
+      margin-bottom: 6px; max-height: 420px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th {
+      background: var(--light-blue); color: var(--navy); font-weight: 700;
+      text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 1;
+    }
+    th.right, td.right { text-align: right; }
+    td { padding: 7px 12px; border-bottom: 1px solid #EEF2F6; }
+    tr:last-child td { border-bottom: none; }
+    tr.total-row td { font-weight: 700; color: var(--navy); background: #F7FAFC; }
+    tr:hover td { background: #F7FAFC; }
+    .badge {
+      display: inline-block; padding: 2px 8px; border-radius: 10px;
+      font-size: 0.72rem; font-weight: 600;
+    }
+    .badge-good { background: #C6F6D5; color: #276749; }
+    .badge-slow { background: #FEEBC8; color: #C05621; }
+    .badge-disposal { background: #FED7D7; color: #C53030; }
+
+    /* Expandable category rows */
+    tr.cat-row { cursor: pointer; user-select: none; }
+    tr.cat-row:hover td { background: #E8F0F8 !important; }
+    tr.cat-row td:first-child::before {
+      content: '▶ ';
+      font-size: 0.7rem;
+      color: var(--navy);
+      display: inline-block;
+      width: 14px;
+      transition: transform 0.15s;
+    }
+    tr.cat-row.expanded td:first-child::before {
+      content: '▼ ';
+    }
+    tr.detail-row { display: none; background: #FAFBFC; }
+    tr.detail-row.show { display: table-row; }
+    tr.detail-row td {
+      font-size: 0.82rem;
+      color: #4A5568;
+      padding-left: 28px;
+      border-bottom: 1px solid #F0F2F5;
+    }
+    tr.detail-row td:first-child { padding-left: 32px; }
+
+    .footer {
+      background: var(--navy); color: #A8C5E2; text-align: center;
+      padding: 12px; font-size: 0.78rem; margin-top: 28px;
+    }
+
+    @media (max-width: 900px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .kpi-grid, .kpi-grid.two-col { grid-template-columns: 1fr; }
+      .header, .controls, .container { padding-left: 14px; padding-right: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <h1>PIUS LTD MONTHLY STOCK DASHBOARD</h1>
+    <div class="subtitle">PIUS Ltd — Executive Stock Overview</div>
+    <div class="meta">Stock Counting Report &nbsp;|&nbsp; Source: ERMS / Stock ledger</div>
+  </header>
+
+  <div class="controls">
+    <label>Period:</label>
+    <input type="text" id="periodInput" class="period-input" value="Nov-2024" placeholder="e.g. Dec-2024" title="Type the period here" />
+    <label style="margin-left:12px;">Load CSV:</label>
+    <input type="file" id="csvFile" accept=".csv" style="display:none" />
+    <button class="file-btn" onclick="document.getElementById('csvFile').click()">Choose stock_data.csv</button>
+    <span id="fileName">Using embedded data</span>
+  </div>
+
+  <div class="container">
+
+    <!-- Value KPIs -->
+    <div class="kpi-grid" id="kpiValues">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- Quantity KPIs -->
+    <div class="kpi-grid" id="kpiQty">
+      <!-- filled by JS -->
+    </div>
+
+
+    <!-- Category -->
+    <div class="section-header">STOCK VALUE BY CATEGORY (SELECTED MONTH)</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Category / Item</th>
+            <th class="right">Closing Qty</th>
+            <th class="right">Closing Value (TZS)</th>
+            <th class="right">% of Total</th>
+            <th class="right">Lines</th>
+          </tr>
+        </thead>
+        <tbody id="catBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Watchlist -->
+    <div class="section-header">WATCHLIST: SLOW MOVING / MARKED FOR DISPOSAL / OUT OF STOCK</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Item</th>
+            <th>Unit</th>
+            <th class="right">Closing Qty</th>
+            <th class="right">Closing Value (TZS)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="watchBody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <footer class="footer">
+    PIUS Ltd &nbsp;•&nbsp; Confidential &nbsp;•&nbsp; For internal use only &nbsp;•&nbsp; Developed by Paison Tazvy
+  </footer>
+
+<script>
+// ── Embedded data (works offline / file://) ──────────────────────────────────
+const EMBEDDED_DATA = [{"sn": 1, "description": "Ball Pen Black", "unit": "Box", "opening_qty": 38.0, "opening_unit_price": 12400.0, "opening_value": 471200.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 38.0, "closing_unit_price": 12400.0, "closing_value": 471200.0, "status": "Good"}, {"sn": 2, "description": "Ball Pen Blue", "unit": "Box", "opening_qty": 71.0, "opening_unit_price": 11901.23, "opening_value": 844987.33, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 8.0, "issued_unit_price": 11901.23, "issued_value": 95209.84, "closing_qty": 63.0, "closing_unit_price": 11901.23, "closing_value": 749777.49, "status": "Good"}, {"sn": 3, "description": "Ball Pen Red", "unit": "Box", "opening_qty": 3.0, "opening_unit_price": 21231.69, "opening_value": 63695.07, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 21231.69, "closing_value": 63695.07, "status": "Slow moving"}, {"sn": 4, "description": "Box file (1x 50pcs)", "unit": "Box", "opening_qty": 15.0, "opening_unit_price": 135000.0, "opening_value": 2025000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 135000.0, "issued_value": 270000.0, "closing_qty": 13.0, "closing_unit_price": 135000.0, "closing_value": 1755000.0, "status": "Good"}, {"sn": 5, "description": "Bulldog (b/clips)  25 mm", "unit": "Box", "opening_qty": 13.0, "opening_unit_price": 7784.95, "opening_value": 101204.35, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 13.0, "closing_unit_price": 7784.95, "closing_value": 101204.35, "status": "Good"}, {"sn": 6, "description": "Bulldog (b/clips)  32 mm", "unit": "Box", "opening_qty": 43.0, "opening_unit_price": 9200.4, "opening_value": 395617.2, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 43.0, "closing_unit_price": 9200.4, "closing_value": 395617.2, "status": "Good"}, {"sn": 7, "description": "Bulldog (b/clips) 51mm", "unit": "Box", "opening_qty": 10.0, "opening_unit_price": 12031.29, "opening_value": 120312.9, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 10.0, "closing_unit_price": 12031.29, "closing_value": 120312.9, "status": "Good"}, {"sn": 8, "description": "Binding tape (black color)", "unit": "Pc", "opening_qty": 120.0, "opening_unit_price": 3300.0, "opening_value": 396000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 12.0, "issued_unit_price": 3300.0, "issued_value": 39600.0, "closing_qty": 108.0, "closing_unit_price": 3300.0, "closing_value": 356400.0, "status": "Good"}, {"sn": 9, "description": "Correction fluid", "unit": "Pc", "opening_qty": 20.0, "opening_unit_price": 969.28, "opening_value": 19385.6, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 20.0, "closing_unit_price": 969.28, "closing_value": 19385.6, "status": "Good"}, {"sn": 10, "description": "Cello tape L/s", "unit": "pc", "opening_qty": 20.0, "opening_unit_price": 5500.0, "opening_value": 110000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 16.0, "issued_unit_price": 5500.0, "issued_value": 88000.0, "closing_qty": 4.0, "closing_unit_price": 5500.0, "closing_value": 22000.0, "status": "Good"}, {"sn": 11, "description": "Carbon Paper A4", "unit": "Pkt", "opening_qty": 12.0, "opening_unit_price": 6590.63, "opening_value": 79087.56, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 12.0, "closing_unit_price": 6590.63, "closing_value": 79087.56, "status": "Slow moving"}, {"sn": 12, "description": "Counter Book 3Q", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 3428.19, "opening_value": 20569.14, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 3428.19, "closing_value": 20569.14, "status": "Good"}, {"sn": 13, "description": "Counter book 4Q", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 4139.17, "opening_value": 28974.19, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 4139.17, "closing_value": 28974.19, "status": "Good"}, {"sn": 14, "description": "Computer Mouse", "unit": "Pc", "opening_qty": 50.0, "opening_unit_price": 20000.0, "opening_value": 1000000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 20000.0, "issued_value": 40000.0, "closing_qty": 48.0, "closing_unit_price": 20000.0, "closing_value": 960000.0, "status": "Good"}, {"sn": 15, "description": "Desk Organizer", "unit": "Pc", "opening_qty": 10.0, "opening_unit_price": 20000.0, "opening_value": 200000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 20000.0, "issued_value": 20000.0, "closing_qty": 9.0, "closing_unit_price": 20000.0, "closing_value": 180000.0, "status": "Good"}, {"sn": 16, "description": "Dispatch books", "unit": "Pc", "opening_qty": 16.0, "opening_unit_price": 1000.0, "opening_value": 16000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 1000.0, "issued_value": 2000.0, "closing_qty": 14.0, "closing_unit_price": 1000.0, "closing_value": 14000.0, "status": "Slow moving"}, {"sn": 17, "description": "DVD-RW", "unit": "Pc", "opening_qty": 10.0, "opening_unit_price": 6794.14, "opening_value": 67941.4, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 10.0, "closing_unit_price": 6794.14, "closing_value": 67941.4, "status": "Slow moving"}, {"sn": 18, "description": "Dustbin Steel", "unit": "Pc", "opening_qty": 50.0, "opening_unit_price": 10000.0, "opening_value": 500000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 50.0, "closing_unit_price": 10000.0, "closing_value": 500000.0, "status": "Good"}, {"sn": 19, "description": "Envelope S/S (220X110)", "unit": "Box", "opening_qty": 16.0, "opening_unit_price": 7521.21, "opening_value": 120339.36, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 7521.21, "issued_value": 7521.21, "closing_qty": 15.0, "closing_unit_price": 7521.21, "closing_value": 112818.15, "status": "Good"}, {"sn": 20, "description": "Envelope A5 (254X178)", "unit": "Box", "opening_qty": 10.0, "opening_unit_price": 70772.31, "opening_value": 707723.1, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 70772.31, "issued_value": 70772.31, "closing_qty": 9.0, "closing_unit_price": 70772.31, "closing_value": 636950.79, "status": "Good"}, {"sn": 21, "description": "Envelope A4 (324x229)", "unit": "Box/Pkt", "opening_qty": 20.0, "opening_unit_price": 13514.29, "opening_value": 270285.8, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 10.0, "issued_unit_price": 13514.29, "issued_value": 135142.9, "closing_qty": 10.0, "closing_unit_price": 13514.29, "closing_value": 135142.9, "status": "Good"}, {"sn": 22, "description": "Envelope A3 (406X305)", "unit": "Box", "opening_qty": 7.0, "opening_unit_price": 71500.0, "opening_value": 500500.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 71500.0, "issued_value": 71500.0, "closing_qty": 6.0, "closing_unit_price": 71500.0, "closing_value": 429000.0, "status": "Slow moving"}, {"sn": 23, "description": "Extension Cable", "unit": "Pc", "opening_qty": 30.0, "opening_unit_price": 5000.0, "opening_value": 150000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 6.0, "issued_unit_price": 5000.0, "issued_value": 30000.0, "closing_qty": 24.0, "closing_unit_price": 5000.0, "closing_value": 120000.0, "status": "Good"}, {"sn": 24, "description": "Flip Chart Paper", "unit": "Roll", "opening_qty": 13.0, "opening_unit_price": 12739.02, "opening_value": 165607.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 13.0, "closing_unit_price": 12739.02, "closing_value": 165607.26, "status": "Slow moving"}, {"sn": 25, "description": "Glue 160g", "unit": "Pc", "opening_qty": 30.0, "opening_unit_price": 1000.0, "opening_value": 30000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 11.0, "issued_unit_price": 1000.0, "issued_value": 11000.0, "closing_qty": 19.0, "closing_unit_price": 1000.0, "closing_value": 19000.0, "status": "Good"}, {"sn": 26, "description": "Glue Stick", "unit": "Pc", "opening_qty": 50.0, "opening_unit_price": 800.0, "opening_value": 40000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 13.0, "issued_unit_price": 800.0, "issued_value": 10400.0, "closing_qty": 37.0, "closing_unit_price": 800.0, "closing_value": 29600.0, "status": "Good"}, {"sn": 27, "description": "Green Tags", "unit": "Pc", "opening_qty": 31.0, "opening_unit_price": 1079.58, "opening_value": 33466.98, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 31.0, "closing_unit_price": 1079.58, "closing_value": 33466.98, "status": "Slow moving"}, {"sn": 28, "description": "H/cover Note Book", "unit": "Pc", "opening_qty": 13.0, "opening_unit_price": 6000.0, "opening_value": 78000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 13.0, "closing_unit_price": 6000.0, "closing_value": 78000.0, "status": "Good"}, {"sn": 29, "description": "Highlighter", "unit": "Pkt", "opening_qty": 12.0, "opening_unit_price": 5065.72, "opening_value": 60788.64, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 12.0, "closing_unit_price": 5065.72, "closing_value": 60788.64, "status": "Good"}, {"sn": 30, "description": "Highlighter Assorted", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 900.0, "opening_value": 3600.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 4.0, "closing_unit_price": 900.0, "closing_value": 3600.0, "status": "Good"}, {"sn": 31, "description": "Legal Paper A4", "unit": "Rm", "opening_qty": 100.0, "opening_unit_price": 12000.0, "opening_value": 1200000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 15.0, "issued_unit_price": 12000.0, "issued_value": 180000.0, "closing_qty": 85.0, "closing_unit_price": 12000.0, "closing_value": 1020000.0, "status": "Good"}, {"sn": 32, "description": "Manila Cover A4", "unit": "Rm", "opening_qty": 66.0, "opening_unit_price": 9908.12, "opening_value": 653935.92, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 66.0, "closing_unit_price": 9908.12, "closing_value": 653935.92, "status": "Good"}, {"sn": 33, "description": "Masking Tape", "unit": "Pc", "opening_qty": 0.0, "opening_unit_price": 0.0, "opening_value": 0.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 0.0, "closing_unit_price": 0.0, "closing_value": 0.0, "status": "Good"}, {"sn": 34, "description": "Marker pen assorted", "unit": "Pkt", "opening_qty": 10.0, "opening_unit_price": 10000.0, "opening_value": 100000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 10.0, "closing_unit_price": 10000.0, "closing_value": 100000.0, "status": "Good"}, {"sn": 35, "description": "Marker pen Red", "unit": "Pkt", "opening_qty": 2.0, "opening_unit_price": 8492.68, "opening_value": 16985.36, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 8492.68, "closing_value": 16985.36, "status": "Good"}, {"sn": 36, "description": "Minutes Sheet", "unit": "Rm", "opening_qty": 95.0, "opening_unit_price": 11275.59, "opening_value": 1071181.05, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 95.0, "closing_unit_price": 11275.59, "closing_value": 1071181.05, "status": "Slow moving"}, {"sn": 37, "description": "Mouse Pad", "unit": "Pc", "opening_qty": 13.0, "opening_unit_price": 16334.18, "opening_value": 212344.34, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 13.0, "closing_unit_price": 16334.18, "closing_value": 212344.34, "status": "Good"}, {"sn": 38, "description": "Office Pin 24-66/4", "unit": "Box", "opening_qty": 50.0, "opening_unit_price": 239.91, "opening_value": 11995.5, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 50.0, "closing_unit_price": 239.91, "closing_value": 11995.5, "status": "Slow moving"}, {"sn": 39, "description": "Office tray", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 37155.46, "opening_value": 74310.92, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 37155.46, "closing_value": 74310.92, "status": "Slow moving"}, {"sn": 40, "description": "Paper clips 33mm", "unit": "Box", "opening_qty": 7.0, "opening_unit_price": 11998.58, "opening_value": 83990.06, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 11998.58, "closing_value": 83990.06, "status": "Good"}, {"sn": 41, "description": "Pencil", "unit": "Pkt", "opening_qty": 31.0, "opening_unit_price": 3181.82, "opening_value": 98636.42, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 3181.82, "issued_value": 6363.64, "closing_qty": 29.0, "closing_unit_price": 3181.82, "closing_value": 92272.78, "status": "Good"}, {"sn": 42, "description": "Photocopy Paper A4", "unit": "Rm", "opening_qty": 125.0, "opening_unit_price": 13598.65, "opening_value": 1699831.25, "received_qty": 350.0, "received_unit_price": 13599.65, "received_value": 4759877.5, "issued_qty": 130.0, "issued_unit_price": 13599.65, "issued_value": 1767954.5, "closing_qty": 345.0, "closing_unit_price": 13599.65, "closing_value": 4691879.25, "status": "Good"}, {"sn": 43, "description": "Photocopy Paper A3", "unit": "Rm", "opening_qty": 6.0, "opening_unit_price": 39679.58, "opening_value": 238077.48, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 39679.58, "issued_value": 79359.16, "closing_qty": 4.0, "closing_unit_price": 39679.58, "closing_value": 158718.32, "status": "Good"}, {"sn": 44, "description": "Photocopy Paper cream", "unit": "Rm", "opening_qty": 43.0, "opening_unit_price": 16751.81, "opening_value": 720327.83, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 43.0, "closing_unit_price": 16751.81, "closing_value": 720327.83, "status": "Slow moving"}, {"sn": 45, "description": "Pair of Scissors", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 3000.0, "opening_value": 12000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 4.0, "closing_unit_price": 3000.0, "closing_value": 12000.0, "status": "Good"}, {"sn": 46, "description": "Plastic Binding mm 6", "unit": "Box", "opening_qty": 10.0, "opening_unit_price": 4954.06, "opening_value": 49540.6, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 10.0, "closing_unit_price": 4954.06, "closing_value": 49540.6, "status": "Slow moving"}, {"sn": 47, "description": "Plastic Binding mm 8", "unit": "Box", "opening_qty": 7.0, "opening_unit_price": 6344.15, "opening_value": 44409.05, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 6344.15, "closing_value": 44409.05, "status": "Slow moving"}, {"sn": 48, "description": "Plastic Binding mm 10", "unit": "Box", "opening_qty": 1.0, "opening_unit_price": 12342.26, "opening_value": 12342.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 12342.26, "closing_value": 12342.26, "status": "Slow moving"}, {"sn": 49, "description": "Plastic Binding mm 12", "unit": "Box", "opening_qty": 3.0, "opening_unit_price": 10381.34, "opening_value": 31144.02, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 10381.34, "closing_value": 31144.02, "status": "Slow moving"}, {"sn": 50, "description": "Plastic Binding  mm 16", "unit": "Box", "opening_qty": 9.0, "opening_unit_price": 12187.52, "opening_value": 109687.68, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 12187.52, "closing_value": 109687.68, "status": "Slow moving"}, {"sn": 51, "description": "Plastic Binding mm 18", "unit": "Box", "opening_qty": 19.0, "opening_unit_price": 23473.35, "opening_value": 445993.65, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 19.0, "closing_unit_price": 23473.35, "closing_value": 445993.65, "status": "Slow moving"}, {"sn": 52, "description": "Plastic Binding mm 20", "unit": "Box", "opening_qty": 6.0, "opening_unit_price": 16333.3, "opening_value": 97999.8, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 16333.3, "closing_value": 97999.8, "status": "Slow moving"}, {"sn": 53, "description": "Plastic Binding mm 22", "unit": "Box", "opening_qty": 9.0, "opening_unit_price": 29990.53, "opening_value": 269914.77, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 29990.53, "closing_value": 269914.77, "status": "Slow moving"}, {"sn": 54, "description": "Plastic Binding mm 28", "unit": "Box", "opening_qty": 5.0, "opening_unit_price": 29990.53, "opening_value": 149952.65, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 29990.53, "closing_value": 149952.65, "status": "Slow moving"}, {"sn": 55, "description": "Plastic Binding mm 35", "unit": "Box", "opening_qty": 5.0, "opening_unit_price": 27222.17, "opening_value": 136110.85, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 27222.17, "closing_value": 136110.85, "status": "Slow moving"}, {"sn": 56, "description": "Plastic Binding mm 45", "unit": "Box", "opening_qty": 5.0, "opening_unit_price": 34258.41, "opening_value": 171292.05, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 34258.41, "closing_value": 171292.05, "status": "Slow moving"}, {"sn": 57, "description": "Plastic Binding mm 51", "unit": "Box", "opening_qty": 19.0, "opening_unit_price": 144185.23, "opening_value": 2739519.37, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 19.0, "closing_unit_price": 144185.23, "closing_value": 2739519.37, "status": "Slow moving"}, {"sn": 58, "description": "Punching Machine s/s", "unit": "Pc", "opening_qty": 11.0, "opening_unit_price": 6500.0, "opening_value": 71500.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 11.0, "closing_unit_price": 6500.0, "closing_value": 71500.0, "status": "Good"}, {"sn": 59, "description": "Punching Machine H/D", "unit": "Pc", "opening_qty": 5.0, "opening_unit_price": 100000.0, "opening_value": 500000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 100000.0, "closing_value": 500000.0, "status": "Good"}, {"sn": 60, "description": "2 Ring Binder", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 6103.07, "opening_value": 42721.49, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 6103.07, "closing_value": 42721.49, "status": "Good"}, {"sn": 61, "description": "Plastic Ruler 30 cm", "unit": "Pc", "opening_qty": 24.0, "opening_unit_price": 675.18, "opening_value": 16204.32, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 3.0, "issued_unit_price": 675.18, "issued_value": 2025.54, "closing_qty": 21.0, "closing_unit_price": 675.18, "closing_value": 14178.78, "status": "Good"}, {"sn": 62, "description": "Plastic Folder", "unit": "Pc", "opening_qty": 300.0, "opening_unit_price": 1500.0, "opening_value": 450000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 44.0, "issued_unit_price": 1500.0, "issued_value": 66000.0, "closing_qty": 256.0, "closing_unit_price": 1500.0, "closing_value": 384000.0, "status": "Good"}, {"sn": 63, "description": "Separator Blue color", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 25000.0, "opening_value": 75000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 25000.0, "closing_value": 75000.0, "status": "Slow moving"}, {"sn": 64, "description": "Separator Pink color", "unit": "Pc", "opening_qty": 5.0, "opening_unit_price": 25000.0, "opening_value": 125000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 25000.0, "closing_value": 125000.0, "status": "Slow moving"}, {"sn": 65, "description": "Separator Green color", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 25000.0, "opening_value": 100000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 4.0, "closing_unit_price": 25000.0, "closing_value": 100000.0, "status": "Slow moving"}, {"sn": 66, "description": "Staple Machine s/s", "unit": "Pc", "opening_qty": 20.0, "opening_unit_price": 7660.0, "opening_value": 153200.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 7660.0, "issued_value": 7660.0, "closing_qty": 19.0, "closing_unit_price": 7660.0, "closing_value": 145540.0, "status": "Good"}, {"sn": 67, "description": "Staple Machine Heavy duty", "unit": "Pc", "opening_qty": 8.0, "opening_unit_price": 93750.01, "opening_value": 750000.08, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 8.0, "closing_unit_price": 93750.01, "closing_value": 750000.08, "status": "Good"}, {"sn": 68, "description": "Staple Pin Remover", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 1633.33, "opening_value": 4899.99, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 1633.33, "closing_value": 4899.99, "status": "Good"}, {"sn": 69, "description": "Stamp pad ink blue", "unit": "pc", "opening_qty": 3.0, "opening_unit_price": 2177.89, "opening_value": 6533.67, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 2177.89, "issued_value": 2177.89, "closing_qty": 2.0, "closing_unit_price": 2177.89, "closing_value": 4355.78, "status": "Slow moving"}, {"sn": 70, "description": "Stamp Pad Ink Red", "unit": "pc", "opening_qty": 9.0, "opening_unit_price": 4900.25, "opening_value": 44102.25, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 4900.25, "closing_value": 44102.25, "status": "Slow moving"}, {"sn": 71, "description": "Staple pin size 10", "unit": "Box", "opening_qty": 5.0, "opening_unit_price": 408.33, "opening_value": 2041.65, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 408.33, "closing_value": 2041.65, "status": "Slow moving"}, {"sn": 72, "description": "Staple pin size 23/10", "unit": "Box", "opening_qty": 5.0, "opening_unit_price": 10315.97, "opening_value": 51579.85, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 10315.97, "closing_value": 51579.85, "status": "Slow moving"}, {"sn": 73, "description": "Staple pin size 24/6", "unit": "Box", "opening_qty": 37.0, "opening_unit_price": 13611.09, "opening_value": 503610.33, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 37.0, "closing_unit_price": 13611.09, "closing_value": 503610.33, "status": "Slow moving"}, {"sn": 74, "description": "Staple pin size 66/14", "unit": "Box", "opening_qty": 15.0, "opening_unit_price": 5876.67, "opening_value": 88150.05, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 15.0, "closing_unit_price": 5876.67, "closing_value": 88150.05, "status": "Slow moving"}, {"sn": 75, "description": "Suspension(Hanging file1x50)", "unit": "Box", "opening_qty": 9.0, "opening_unit_price": 9227.85, "opening_value": 83050.65, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 9227.85, "closing_value": 83050.65, "status": "Slow moving"}, {"sn": 76, "description": "Shorthand Notebook", "unit": "Pc", "opening_qty": 240.0, "opening_unit_price": 800.0, "opening_value": 192000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 49.0, "issued_unit_price": 800.0, "issued_value": 39200.0, "closing_qty": 191.0, "closing_unit_price": 800.0, "closing_value": 152800.0, "status": "Good"}, {"sn": 77, "description": "Sign Here Sticker pads", "unit": "Pkt", "opening_qty": 15.0, "opening_unit_price": 3700.0, "opening_value": 55500.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 3700.0, "issued_value": 7400.0, "closing_qty": 13.0, "closing_unit_price": 3700.0, "closing_value": 48100.0, "status": "Good"}, {"sn": 78, "description": "Tonner 6000A", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 353888.22, "opening_value": 353888.22, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 353888.22, "closing_value": 353888.22, "status": "Marked for disposal"}, {"sn": 79, "description": "Tonner 6001A", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 353888.22, "opening_value": 353888.22, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 353888.22, "closing_value": 353888.22, "status": "Marked for disposal"}, {"sn": 80, "description": "Tonner 6002A", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 353888.22, "opening_value": 353888.22, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 353888.22, "closing_value": 353888.22, "status": "Marked for disposal"}, {"sn": 81, "description": "Tonner HP CE505A", "unit": "Pc", "opening_qty": 9.0, "opening_unit_price": 172644.07, "opening_value": 1553796.63, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 172644.07, "closing_value": 1553796.63, "status": "Marked for disposal"}, {"sn": 82, "description": "Tonner HP Q53A", "unit": "Pc", "opening_qty": 5.0, "opening_unit_price": 392452.96, "opening_value": 1962264.8, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 5.0, "closing_unit_price": 392452.96, "closing_value": 1962264.8, "status": "Good"}, {"sn": 83, "description": "Tonner HP 9730A", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 306249.42, "opening_value": 918748.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 306249.42, "closing_value": 918748.26, "status": "Marked for disposal"}, {"sn": 84, "description": "Tonner HP97 31A", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 306249.42, "opening_value": 918748.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 306249.42, "closing_value": 918748.26, "status": "Marked for disposal"}, {"sn": 85, "description": "Tonner HP 9732A", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 306249.42, "opening_value": 918748.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 306249.42, "closing_value": 918748.26, "status": "Marked for disposal"}, {"sn": 86, "description": "Tonner HP 9733A", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 306249.42, "opening_value": 918748.26, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 306249.42, "closing_value": 918748.26, "status": "Marked for disposal"}, {"sn": 87, "description": "Tonner Q5949A", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 394721.48, "opening_value": 2368328.88, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 394721.48, "closing_value": 2368328.88, "status": "Marked for disposal"}, {"sn": 88, "description": "Toner CB540A Black", "unit": "Pc", "opening_qty": 9.0, "opening_unit_price": 333471.59, "opening_value": 3001244.31, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 9.0, "closing_unit_price": 333471.59, "closing_value": 3001244.31, "status": "Slow moving"}, {"sn": 89, "description": "Toner CB541A Cyan", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 333471.59, "opening_value": 2000829.54, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 333471.59, "closing_value": 2000829.54, "status": "Slow moving"}, {"sn": 90, "description": "Toner CB542A Yellow", "unit": "Pc", "opening_qty": 8.0, "opening_unit_price": 333471.59, "opening_value": 2667772.72, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 8.0, "closing_unit_price": 333471.59, "closing_value": 2667772.72, "status": "Slow moving"}, {"sn": 91, "description": "Toner CB543A Magenta", "unit": "Pc", "opening_qty": 8.0, "opening_unit_price": 333471.59, "opening_value": 2667772.72, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 8.0, "closing_unit_price": 333471.59, "closing_value": 2667772.72, "status": "Slow moving"}, {"sn": 92, "description": "Sharp Toner MX-36 FT Black", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 234626.79, "opening_value": 1642387.53, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 234626.79, "closing_value": 1642387.53, "status": "Slow moving"}, {"sn": 93, "description": "Sharp Toner MX-36 FT Cyan", "unit": "Pc", "opening_qty": 10.0, "opening_unit_price": 295073.28, "opening_value": 2950732.8, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 10.0, "closing_unit_price": 295073.28, "closing_value": 2950732.8, "status": "Slow moving"}, {"sn": 94, "description": "Sharp Toner MX-36 FT Yellow", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 196256.6, "opening_value": 1177539.6, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 196256.6, "closing_value": 1177539.6, "status": "Slow moving"}, {"sn": 95, "description": "Sharp Toner MX-36 FT Magenta", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 216804.17, "opening_value": 1300825.02, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 216804.17, "closing_value": 1300825.02, "status": "Slow moving"}, {"sn": 96, "description": "Sharp MX-315 FT", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 535092.03, "opening_value": 1070184.06, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 535092.03, "closing_value": 1070184.06, "status": "Slow moving"}, {"sn": 97, "description": "Sharp MX-754 FT", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 624140.04, "opening_value": 3744840.24, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 624140.04, "closing_value": 3744840.24, "status": "Slow moving"}, {"sn": 98, "description": "Panasonic KX-FAT 411 E", "unit": "Pc", "opening_qty": 6.0, "opening_unit_price": 192743.27, "opening_value": 1156459.62, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 6.0, "closing_unit_price": 192743.27, "closing_value": 1156459.62, "status": "Marked for disposal"}, {"sn": 99, "description": "Toner CE 400A Black", "unit": "Pc", "opening_qty": 0.0, "opening_unit_price": 0.0, "opening_value": 0.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 0.0, "closing_unit_price": 0.0, "closing_value": 0.0, "status": "Good"}, {"sn": 100, "description": "Toner CE 401A Cyan", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 338983.05, "opening_value": 1016949.15, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 338983.05, "closing_value": 1016949.15, "status": "Good"}, {"sn": 101, "description": "Toner CE 402A Yellow", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 338983.05, "opening_value": 1016949.15, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 338983.05, "closing_value": 1016949.15, "status": "Good"}, {"sn": 102, "description": "Toner CE 403A Magenta", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 338983.05, "opening_value": 677966.1, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 338983.05, "closing_value": 677966.1, "status": "Good"}, {"sn": 103, "description": "Toner CE 390 A", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 527290.39, "opening_value": 3691032.73, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 527290.39, "closing_value": 3691032.73, "status": "Good"}, {"sn": 104, "description": "Toner HP 415A Black", "unit": "Pc", "opening_qty": 0.0, "opening_unit_price": 0.0, "opening_value": 0.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 0.0, "closing_unit_price": 0.0, "closing_value": 0.0, "status": "Good"}, {"sn": 105, "description": "Toner HP 415A Cyan", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 254237.29, "opening_value": 254237.29, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 254237.29, "closing_value": 254237.29, "status": "Good"}, {"sn": 106, "description": "Toner HP 415A Yellow", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 254237.29, "opening_value": 254237.29, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 254237.29, "issued_value": 254237.29, "closing_qty": 0.0, "closing_unit_price": 254237.29, "closing_value": 0.0, "status": "Good"}, {"sn": 107, "description": "Toner HP 415A Magenta", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 169491.53, "opening_value": 338983.06, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 169491.53, "closing_value": 338983.06, "status": "Good"}, {"sn": 108, "description": "Toner HP CF 210A Black", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 377567.04, "opening_value": 377567.04, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 377567.04, "closing_value": 377567.04, "status": "Slow moving"}, {"sn": 109, "description": "Toner HP CF 211A Cyan", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 429409.79, "opening_value": 858819.58, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 429409.79, "closing_value": 858819.58, "status": "Slow moving"}, {"sn": 110, "description": "Toner HP CF 212A Yellow", "unit": "Pc", "opening_qty": 1.0, "opening_unit_price": 451760.23, "opening_value": 451760.23, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 1.0, "closing_unit_price": 451760.23, "closing_value": 451760.23, "status": "Slow moving"}, {"sn": 111, "description": "Toner HP CF 213A Magenta", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 429409.79, "opening_value": 858819.58, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 429409.79, "closing_value": 858819.58, "status": "Slow moving"}, {"sn": 112, "description": "Toner HP CF 360A Black", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 338983.05, "opening_value": 1355932.2, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 338983.05, "issued_value": 677966.1, "closing_qty": 2.0, "closing_unit_price": 338983.05, "closing_value": 677966.1, "status": "Good"}, {"sn": 113, "description": "Toner HP CF 361A Cyan", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 338983.05, "opening_value": 1355932.2, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 338983.05, "issued_value": 338983.05, "closing_qty": 3.0, "closing_unit_price": 338983.05, "closing_value": 1016949.15, "status": "Good"}, {"sn": 114, "description": "Toner HP CF 362A Yellow", "unit": "Pc", "opening_qty": 5.0, "opening_unit_price": 338983.05, "opening_value": 1694915.25, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 338983.05, "issued_value": 338983.05, "closing_qty": 4.0, "closing_unit_price": 338983.05, "closing_value": 1355932.2, "status": "Good"}, {"sn": 115, "description": "Toner HP CF 363A Magenta", "unit": "Pc", "opening_qty": 5.0, "opening_unit_price": 338983.05, "opening_value": 1694915.25, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 338983.05, "issued_value": 338983.05, "closing_qty": 4.0, "closing_unit_price": 338983.05, "closing_value": 1355932.2, "status": "Good"}, {"sn": 116, "description": "Uni Ball Pen- Black", "unit": "Pc", "opening_qty": 50.0, "opening_unit_price": 6000.01, "opening_value": 300000.5, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 50.0, "closing_unit_price": 6000.01, "closing_value": 300000.5, "status": "Good"}, {"sn": 117, "description": "Uni Ball Pen- Blue", "unit": "Pc", "opening_qty": 50.0, "opening_unit_price": 6000.01, "opening_value": 300000.5, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 50.0, "closing_unit_price": 6000.01, "closing_value": 300000.5, "status": "Good"}, {"sn": 118, "description": "Uni Ball Pen- Red", "unit": "Pc", "opening_qty": 20.0, "opening_unit_price": 6000.01, "opening_value": 120000.2, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 20.0, "closing_unit_price": 6000.01, "closing_value": 120000.2, "status": "Good"}, {"sn": 119, "description": "Vehicle Log Book", "unit": "Pc", "opening_qty": 24.0, "opening_unit_price": 3746.16, "opening_value": 89907.84, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 24.0, "closing_unit_price": 3746.16, "closing_value": 89907.84, "status": "Slow moving"}, {"sn": 120, "description": "Visitor's Book A4 (New)", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 47649.12, "opening_value": 142947.36, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 47649.12, "closing_value": 142947.36, "status": "Slow moving"}, {"sn": 121, "description": "Writing pad", "unit": "Pc", "opening_qty": 20.0, "opening_unit_price": 2548.13, "opening_value": 50962.6, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 10.0, "issued_unit_price": 2548.13, "issued_value": 25481.3, "closing_qty": 10.0, "closing_unit_price": 2548.13, "closing_value": 25481.3, "status": "Slow moving"}, {"sn": 122, "description": "Gloss Paper 240g", "unit": "Pc", "opening_qty": 20.0, "opening_unit_price": 16334.18, "opening_value": 326683.6, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 2.0, "issued_unit_price": 16334.18, "issued_value": 32668.36, "closing_qty": 18.0, "closing_unit_price": 16334.18, "closing_value": 294015.24, "status": "Slow moving"}, {"sn": 123, "description": "Transparent Paper A4", "unit": "Pc", "opening_qty": 62.0, "opening_unit_price": 10774.2, "opening_value": 668000.4, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 62.0, "closing_unit_price": 10774.2, "closing_value": 668000.4, "status": "Good"}, {"sn": 124, "description": "Yellow Sticker Note", "unit": "Pc", "opening_qty": 100.0, "opening_unit_price": 1200.0, "opening_value": 120000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 8.0, "issued_unit_price": 1200.0, "issued_value": 9600.0, "closing_qty": 92.0, "closing_unit_price": 1200.0, "closing_value": 110400.0, "status": "Good"}, {"sn": 125, "description": "Toner HP W2120A Black", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 540000.0, "opening_value": 3780000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 1.0, "issued_unit_price": 540000.0, "issued_value": 540000.0, "closing_qty": 6.0, "closing_unit_price": 540000.0, "closing_value": 3240000.0, "status": "Slow moving"}, {"sn": 126, "description": "Toner HP W2121A Cyan", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 650000.0, "opening_value": 4550000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 650000.0, "closing_value": 4550000.0, "status": "Slow moving"}, {"sn": 127, "description": "Toner HP W2122A Yellow", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 650000.0, "opening_value": 4550000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 650000.0, "closing_value": 4550000.0, "status": "Slow moving"}, {"sn": 128, "description": "Toner HP W2123A Magenta", "unit": "Pc", "opening_qty": 7.0, "opening_unit_price": 650000.0, "opening_value": 4550000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 7.0, "closing_unit_price": 650000.0, "closing_value": 4550000.0, "status": "Slow moving"}, {"sn": 129, "description": "Toner HP CF 410 Black", "unit": "Pc", "opening_qty": 2.0, "opening_unit_price": 169491.53, "opening_value": 338983.06, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 2.0, "closing_unit_price": 169491.53, "closing_value": 338983.06, "status": "Slow moving"}, {"sn": 130, "description": "Toner HP CF 411 Cyan", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 211864.41, "opening_value": 635593.23, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 211864.41, "closing_value": 635593.23, "status": "Slow moving"}, {"sn": 131, "description": "Toner HP CF 412 Yellow", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 211864.41, "opening_value": 635593.23, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 211864.41, "closing_value": 635593.23, "status": "Slow moving"}, {"sn": 132, "description": "Toner HP CF 413 Magenta", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 211864.41, "opening_value": 847457.64, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 4.0, "closing_unit_price": 211864.41, "closing_value": 847457.64, "status": "Slow moving"}, {"sn": 133, "description": "Toner HP CE 410A Black", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 250000.0, "opening_value": 750000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 250000.0, "closing_value": 750000.0, "status": "Good"}, {"sn": 134, "description": "Toner HP CE 411A Cyan", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 354000.0, "opening_value": 1062000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 354000.0, "closing_value": 1062000.0, "status": "Good"}, {"sn": 135, "description": "Toner HP CE 412A Yellow", "unit": "Pc", "opening_qty": 3.0, "opening_unit_price": 354000.0, "opening_value": 1062000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 3.0, "closing_unit_price": 354000.0, "closing_value": 1062000.0, "status": "Good"}, {"sn": 136, "description": "Toner HP CE 413A Magenta", "unit": "Pc", "opening_qty": 4.0, "opening_unit_price": 354000.0, "opening_value": 1416000.0, "received_qty": 0.0, "received_unit_price": 0.0, "received_value": 0.0, "issued_qty": 0.0, "issued_unit_price": 0.0, "issued_value": 0.0, "closing_qty": 4.0, "closing_unit_price": 354000.0, "closing_value": 1416000.0, "status": "Good"}];
+
+function fmt(n, decimals = 0) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+function classifyCategory(desc) {
+  const d = desc.toLowerCase();
+  if (d.includes('toner') || d.includes('tonner')) return 'Toners & Cartridges';
+  if (d.includes('paper') || d.includes('envelope') || d.includes('manila') ||
+      d.includes('minutes') || d.includes('legal paper') || d.includes('photocopy') ||
+      d.includes('gloss') || d.includes('transparent') || d.includes('carbon') ||
+      d.includes('flip chart')) return 'Paper & Envelopes';
+  if (d.includes('pen') || d.includes('pencil') || d.includes('marker') ||
+      d.includes('highlighter') || d.includes('correction') || d.includes('glue') ||
+      d.includes('tape') || d.includes('stapler') || d.includes('staple') ||
+      d.includes('clip') || d.includes('bulldog') || d.includes('binding') ||
+      d.includes('punch') || d.includes('scissors') || d.includes('ruler') ||
+      d.includes('pin') || d.includes('tag')) return 'Writing & Desk Supplies';
+  if (d.includes('file') || d.includes('folder') || d.includes('binder') ||
+      d.includes('separator') || d.includes('suspension') || d.includes('tray') ||
+      d.includes('organizer') || d.includes('notebook') || d.includes('book') ||
+      d.includes('pad') || d.includes('sticker')) return 'Filing & Notebooks';
+  return 'Other / Equipment';
+}
+
+function statusBadge(s, closingQty) {
+  if (closingQty <= 0) return '<span class="badge badge-disposal">Out of Stock</span>';
+  const t = (s || '').toLowerCase();
+  if (t.includes('disposal')) return '<span class="badge badge-disposal">Marked for disposal</span>';
+  if (t.includes('slow')) return '<span class="badge badge-slow">Slow moving</span>';
+  return '<span class="badge badge-good">Good</span>';
+}
+
+function toggleCat(catId) {
+  const row = document.querySelector('tr.cat-row[data-cat="' + catId + '"]');
+  const details = document.querySelectorAll('tr.detail-row.' + catId);
+  const isOpen = row.classList.contains('expanded');
+  if (isOpen) {
+    row.classList.remove('expanded');
+    details.forEach(d => d.classList.remove('show'));
+  } else {
+    row.classList.add('expanded');
+    details.forEach(d => d.classList.add('show'));
+  }
+}
+
+function render(data) {
+  // Aggregates
+  const openingQty = data.reduce((s, r) => s + r.opening_qty, 0);
+  const closingQty = data.reduce((s, r) => s + r.closing_qty, 0);
+  const receivedQty = data.reduce((s, r) => s + r.received_qty, 0);
+  const issuedQty = data.reduce((s, r) => s + r.issued_qty, 0);
+
+  const openingVal = data.reduce((s, r) => s + r.opening_value, 0);
+  const closingVal = data.reduce((s, r) => s + r.closing_value, 0);
+  const receivedVal = data.reduce((s, r) => s + r.received_value, 0);
+  const issuedVal = data.reduce((s, r) => s + r.issued_value, 0);
+
+  const netChange = closingVal - openingVal;
+  const netPct = openingVal ? (netChange / openingVal * 100) : 0;
+
+  // Value KPIs
+  document.getElementById('kpiValues').innerHTML = `
+    <div class="kpi-card">
+      <div class="title">Closing Stock Value (TZS)</div>
+      <div class="value">${fmt(closingVal, 2)}</div>
+      <div class="subtitle">Opening: ${fmt(openingVal, 2)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Net Change in Stock Value</div>
+      <div class="value ${netChange >= 0 ? 'positive' : 'negative'}">${netChange >= 0 ? '+' : ''}${fmt(netChange, 2)}</div>
+      <div class="subtitle">${netPct >= 0 ? '+' : ''}${fmt(netPct, 2)}% vs opening</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Value Received This Month</div>
+      <div class="value">${fmt(receivedVal, 2)}</div>
+      <div class="subtitle">Purchases + transfers in</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Value Issued / Consumed</div>
+      <div class="value">${fmt(issuedVal, 2)}</div>
+      <div class="subtitle">Consumption + transfers out</div>
+    </div>
+  `;
+
+  // Quantity KPIs
+  document.getElementById('kpiQty').innerHTML = `
+    <div class="kpi-card">
+      <div class="title">Total Quantity (Opening)</div>
+      <div class="value">${fmt(openingQty)}</div>
+      <div class="subtitle">Quantity at start of period</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Total Quantity (Received)</div>
+      <div class="value">${fmt(receivedQty)}</div>
+      <div class="subtitle">Purchases + transfers in</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Total Quantity (Issued)</div>
+      <div class="value">${fmt(issuedQty)}</div>
+      <div class="subtitle">Consumption + transfers out</div>
+    </div>
+    <div class="kpi-card">
+      <div class="title">Total Quantity (Closing)</div>
+      <div class="value">${fmt(closingQty)}</div>
+      <div class="subtitle">Quantity at end of period</div>
+    </div>
+  `;
+
+
+  // Categories (expandable)
+  const cats = {};
+  data.forEach(r => {
+    const c = classifyCategory(r.description);
+    if (!cats[c]) cats[c] = { value: 0, qty: 0, items: [], count: 0 };
+    cats[c].value += r.closing_value;
+    cats[c].qty += r.closing_qty;
+    cats[c].count += 1;
+    cats[c].items.push(r);
+  });
+  const catList = Object.entries(cats).sort((a, b) => b[1].value - a[1].value);
+  let catHtml = '';
+  catList.forEach(([name, v], idx) => {
+    const pct = closingVal ? (v.value / closingVal * 100) : 0;
+    const catId = 'cat-' + idx;
+    // Category summary row
+    catHtml += `<tr class="cat-row" data-cat="${catId}" onclick="toggleCat('${catId}')">
+      <td><strong>${name}</strong></td>
+      <td class="right">${fmt(v.qty)}</td>
+      <td class="right">${fmt(v.value, 2)}</td>
+      <td class="right">${fmt(pct, 1)}%</td>
+      <td class="right">${v.count}</td>
+    </tr>`;
+    // Detail rows (hidden by default), sorted by value desc
+    const sortedItems = v.items.slice().sort((a, b) => b.closing_value - a.closing_value);
+    sortedItems.forEach(r => {
+      catHtml += `<tr class="detail-row ${catId}">
+        <td>${r.description} <span style="color:#A0AEC0;font-size:0.75rem">(${r.unit})</span></td>
+        <td class="right">${fmt(r.closing_qty)}</td>
+        <td class="right">${fmt(r.closing_value, 2)}</td>
+        <td class="right"></td>
+        <td class="right">${statusBadge(r.status, r.closing_qty)}</td>
+      </tr>`;
+    });
+  });
+  catHtml += `<tr class="total-row">
+    <td>Total</td>
+    <td class="right">${fmt(data.reduce((s,r)=>s+r.closing_qty,0))}</td>
+    <td class="right">${fmt(closingVal, 2)}</td>
+    <td class="right">100%</td>
+    <td class="right">${data.length}</td>
+  </tr>`;
+  document.getElementById('catBody').innerHTML = catHtml;
+
+  // Watchlist: Slow moving, Marked for disposal, Out of stock, or zero movement
+  const watch = data.filter(r => {
+    const st = (r.status || '').toLowerCase();
+    const noMove = r.received_qty === 0 && r.issued_qty === 0;
+    const outOfStock = r.closing_qty <= 0;
+    return st.includes('slow') || st.includes('disposal') || outOfStock || (noMove && r.closing_qty > 0);
+  }).sort((a, b) => b.closing_value - a.closing_value);
+
+  let wHtml = '';
+  watch.forEach((r, i) => {
+    wHtml += `<tr>
+      <td>${i + 1}</td>
+      <td>${r.description}</td>
+      <td>${r.unit}</td>
+      <td class="right">${fmt(r.closing_qty)}</td>
+      <td class="right">${fmt(r.closing_value, 2)}</td>
+      <td>${statusBadge(r.status, r.closing_qty)}</td>
+    </tr>`;
+  });
+  if (!watch.length) wHtml = '<tr><td colspan="6" style="text-align:center;color:#718096">No items on watchlist</td></tr>';
+  document.getElementById('watchBody').innerHTML = wHtml;
+}
+
+// Initial render from embedded data
+render(EMBEDDED_DATA);
+
+// CSV loader
+document.getElementById('csvFile').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('fileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    const text = ev.target.result;
+    const lines = text.trim().split(/\r?\n/);
+    if (lines.length < 2) return alert('Empty or invalid CSV');
+    const headers = lines[0].split(',').map(h => h.trim());
+    const data = [];
+    for (let i = 1; i < lines.length; i++) {
+      // simple CSV parse (handles quoted fields lightly)
+      const cols = lines[i].match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g) || lines[i].split(',');
+      if (cols.length < headers.length) continue;
+      const obj = {};
+      headers.forEach((h, idx) => {
+        let v = (cols[idx] || '').replace(/^"|"$/g, '').trim();
+        if (['opening_qty','opening_unit_price','opening_value','received_qty','received_unit_price','received_value',
+             'issued_qty','issued_unit_price','issued_value','closing_qty','closing_unit_price','closing_value'].includes(h)) {
+          obj[h] = parseFloat(v) || 0;
+        } else if (h === 'sn') {
+          obj[h] = parseInt(v) || 0;
+        } else {
+          obj[h] = v;
+        }
+      });
+      data.push(obj);
+    }
+    if (data.length) render(data);
+    else alert('No valid rows found in CSV');
+  };
+  reader.readAsText(file);
+});
+</script>
+</body>
+</html>
