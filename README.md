@@ -1,6 +1,6 @@
 # PIUS Ltd Monthly Stock Dashboard
 
-Interactive inventory dashboard that turns monthly stock-counting reports into clear KPIs, movement analysis, and slow/dead-stock alerts for faster decision-making.
+Business-focused stock dashboard that converts raw inventory ledgers into executive KPIs, category insights, and watchlists for slow-moving and out-of-stock items.
 
 Built for **PIUS Ltd** stock counting and inventory reporting. Works entirely offline in any modern browser — no server or installation required.
 
